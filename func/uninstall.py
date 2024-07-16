@@ -4,10 +4,6 @@ def delete_reg_key():
     """Удаляет записи WinP из реестра."""
     try:
         key_paths = [
-            r"Software\Classes\*\shell\АрхивироватьФайл",
-            r"Software\Classes\Folder\shell\АрхивироватьПапку",
-            r"Software\Classes\Folder\shell\Архивировать с помощью WinP",
-            r"Software\Classes\*\shell\Архивировать",
             r"Software\Classes\*\shell\ArchiveFile",
             r"Software\Classes\Folder\shell\ArchiveFolder"
         ]
