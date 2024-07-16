@@ -2,9 +2,9 @@ import os
 import shutil
 import winreg
 
-def clean_unused_files():
+def clean_unused_files(folder_path):
     # Здесь можно указать путь к папке, например, рабочему столу или директории загрузок
-    folder_path = "C:\\Users\\Username\\Desktop"
+    #folder_path = "C:\\Users\\Username\\Desktop"
     for root, dirs, files in os.walk(folder_path):
         for file in files:
             file_path = os.path.join(root, file)

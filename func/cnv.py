@@ -1,13 +1,13 @@
 import os
 
-def get_file_path():
+def get_file_path(file_path):
     """
     Ask user for the file path and validate its existence.
 
     Returns:
     str: Validated file path entered by the user.
     """
-    file_path = input("Enter the file path: ")
+    #file_path = input("Enter the file path: ")
     while not os.path.exists(file_path):
         print("File does not exist. Please enter a valid file path.")
         file_path = input("Enter the file path: ")
