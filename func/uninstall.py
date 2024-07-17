@@ -5,7 +5,10 @@ def delete_reg_key():
     try:
         key_paths = [
             r"Software\Classes\*\shell\ArchiveFile",
-            r"Software\Classes\Folder\shell\ArchiveFolder"
+            r"Software\Classes\Folder\shell\ArchiveFolder",
+            r"Software\Classes\.zis\shell\ExtractFile",
+            r"Software\Classes\.zip\shell\ExtractFile",
+            r"Software\Classes\.7z\shell\ExtractFile"
         ]
 
         for key_path in key_paths:

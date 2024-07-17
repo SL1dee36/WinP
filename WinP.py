@@ -25,7 +25,7 @@ class WinPWindow(CTk):
         and make it non-resizable.
         Also, load the functions frame.
         """
-        self.title("WinP: F16E7")
+        self.title("WinP: F17E7")
         self.geometry("300x400")
         self.resizable(False, False)
         self.load_functions_frame()
@@ -212,13 +212,62 @@ def compress_selected():
     thread.join()  # Wait for the thread to complete
 
 
-def create_reg_key():
-    """Creates a registry entry for the context menu.
+def extract_selected():
+    """Extracts selected archive files in a separate thread.
 
-    This function creates registry keys to integrate the script 
-    into the Windows context menu for files and folders, allowing 
-    users to right-click and choose "Archive with WinP".
+    Similar to `compress_selected`, this function handles the context menu action
+    for extraction. It iterates through the provided file paths, attempting to
+    decompress each one. Any errors encountered during extraction are displayed
+    using CTkMessagebox. 
+    
+    This version also filters the provided file paths to only process files with
+    the extensions .zis, .zip, or .7zip.
     """
+    def extract_thread(items):
+        """Function to perform extraction in a separate thread."""
+        if not items:
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Error", message="No file or folder selected.")
+            root.mainloop()
+            return
+
+        for item in items:
+            print(item)
+            # Check if the file has a valid archive extension
+            if not any(item.lower().endswith(ext) for ext in ['.zis', '.zip', '.7zip']):
+                root = tk.Tk()
+                root.withdraw()
+                CTkMessagebox(title="Error", message=f"Unsupported file type: '{item}'")
+                root.mainloop()
+                continue  # Skip to the next file
+
+            try:
+                decompress_file(item)
+                root = tk.Tk()
+                root.withdraw()
+                CTkMessagebox(title="Success", message=f"'{item}' successfully extracted.")
+                root.mainloop()
+            except RuntimeError as e:  # Catch potential password errors
+                root = tk.Tk()
+                root.withdraw()
+                CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
+                root.mainloop()
+            except Exception as e:
+                root = tk.Tk()
+                root.withdraw()
+                CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
+                root.mainloop()
+    #  Исправление: начинаем с индекса 2, чтобы получить пути к файлам
+    file_paths = sys.argv[2:]  
+
+    # Create and start a separate thread for extraction
+    thread = threading.Thread(target=extract_thread, args=(file_paths,))
+    thread.start()
+    thread.join()  # Wait for the thread to complete
+
+def create_reg_key():
+    """Creates a registry entry for the context menu."""
     try:
         python_path = sys.executable
         script_path = os.path.abspath(__file__)
@@ -226,6 +275,13 @@ def create_reg_key():
         key_paths = {
             "Archive File with WinP": r"Software\Classes\*\shell\ArchiveFile",
             "Archive Folder with WinP": r"Software\Classes\Folder\shell\ArchiveFolder"
+        }
+
+        # Use unique keys for each file type
+        extract_key_paths = {
+            "Extract with WinP (.zis)": r"Software\Classes\.zis\shell\ExtractFile",
+            "Extract with WinP (.zip)": r"Software\Classes\.zip\shell\ExtractFile",
+            "Extract with WinP (.7z)": r"Software\Classes\.7z\shell\ExtractFile"
         }
 
         for menu_text, key_path in key_paths.items():
@@ -236,9 +292,20 @@ def create_reg_key():
             command_key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path + r"\command")
             winreg.SetValueEx(command_key, "", 0, winreg.REG_SZ,
                              f"\"{python_path}\" \"{script_path}\" \"%1\"")
-
-            winreg.CloseKey(key)
             winreg.CloseKey(command_key)
+            winreg.CloseKey(key)
+
+        for menu_text, key_path in extract_key_paths.items():
+            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path)
+            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, menu_text)
+            winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f"{script_path},0")
+
+            command_key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path + r"\command")
+            winreg.SetValueEx(command_key, "", 0, winreg.REG_SZ,
+                             f"\"{python_path}\" \"{script_path}\" \"extract\" \"%1\"")
+            winreg.CloseKey(command_key)
+            winreg.CloseKey(key)
+
         return True
     except Exception as e:
         print(f"Error creating registry key: {e}")
@@ -246,16 +313,18 @@ def create_reg_key():
 
 
 def delete_reg_key():
-    """Deletes an existing registry entry.
+    """Deletes existing registry entries.
 
-    This function attempts to remove the registry keys associated with 
-    the context menu integration. It's used to clean up previous 
-    installations or handle uninstallation.
+    This function now removes the incorrect entry that was associated with folders 
+    and adds the removal of the specific file type entries. 
     """
     try:
         key_paths = [
             r"Software\Classes\*\shell\ArchiveFile",
-            r"Software\Classes\Folder\shell\ArchiveFolder"
+            r"Software\Classes\Folder\shell\ArchiveFolder",
+            r"Software\Classes\.zis\shell\ExtractFile",
+            r"Software\Classes\.zip\shell\ExtractFile",
+            r"Software\Classes\.7z\shell\ExtractFile"
         ]
 
         for key_path in key_paths:
@@ -270,7 +339,9 @@ def delete_reg_key():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 1 and sys.argv[1] == "extract":  # Check for "extract" 
+        extract_selected()
+    elif len(sys.argv) > 1: # If there are arguments, assume it's for archiving
         compress_selected()
     else:
         if delete_reg_key() and create_reg_key():
