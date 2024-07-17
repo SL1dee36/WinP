@@ -8,6 +8,7 @@ from CTkMessagebox import CTkMessagebox
 # from func.tmp import clean_unused_files,clean_registry,clean_temp_folder
 from func.arh import compress_file, decompress_file
 from webbrowser import open
+import subprocess
 import os
 import sys
 import threading
@@ -25,6 +26,7 @@ class WinPWindow(CTk):
         and make it non-resizable.
         Also, load the functions frame.
         """
+        #self.iconbitmap("assets/winp.ico")
         self.title("WinP: F17E7")
         self.geometry("300x400")
         self.resizable(False, False)
@@ -47,7 +49,8 @@ class WinPWindow(CTk):
         fncs = {
             'ARH': self.load_arh_frame,
             'CNV': lambda: print("CNV"),
-            'TMP': lambda: print("TMP")
+            'TMP': lambda: print("TMP"),
+            'STG': self.load_stg_frame
         }
 
         if name in fncs:
@@ -64,8 +67,10 @@ class WinPWindow(CTk):
         Then, a new frame is created to hold the main function buttons (Archive, Converter, Optimizer).
         """
         try:
+            self.stg_frame.forget()
             self.fn_frame.forget()
             self.arh_frame.forget()
+            
         except:
             pass
 
@@ -79,9 +84,32 @@ class WinPWindow(CTk):
         cnv_button.pack(padx=5, pady=5)
         tmp_button = CTkButton(self.lf_frame, text="Optimizer", command=lambda: self.function("TMP"))
         tmp_button.pack(padx=5, pady=5)
+        stg_button = CTkButton(self.lf_frame, text="Settings",  command=lambda: self.function("STG"))
+        stg_button.pack(padx=5, pady=5)
 
         dev_button = CTkButton(self.lf_frame, text="GitHub", command=lambda: open("https://github.com/SL1dee36"))
         dev_button.pack(padx=5, pady=5, side=BOTTOM)
+
+    def load_stg_frame(self):
+        self.lf_frame.forget()
+        self.fn_frame.forget()
+
+        self.stg_frame = CTkFrame(self, width=300, height=400)
+        self.stg_frame.pack(padx=5, pady=5)
+        self.stg_frame.propagate(0)
+
+        # "Create WinP Reg Key" button
+        crg_button = CTkButton(self.stg_frame, text="Activate WinP Context Menu",width=200, command=lambda: create_reg_key(True))
+        crg_button.pack(padx=5, pady=5)
+
+        # "Delete WinP Reg Key" button
+        drg_button = CTkButton(self.stg_frame, text="Disable WinP Context Menu" ,width=200, command=lambda: delete_reg_key(True))
+        drg_button.pack(padx=5, pady=5)
+
+        # "Back" button
+        bck_button = CTkButton(self.stg_frame, text="Back", command=lambda: self.load_functions_frame())
+        bck_button.pack(padx=5, pady=5, side=BOTTOM)
+
 
     def load_arh_frame(self):
         """
@@ -176,7 +204,6 @@ class WinPWindow(CTk):
     def TMP():
         pass
 
-
 def compress_selected():
     """Archives selected files or folders in a separate thread.
 
@@ -184,27 +211,36 @@ def compress_selected():
     It retrieves the selected files/folders from the command line arguments and 
     archives each of them. Error messages are displayed using CTkMessagebox.
     """
+    
     def archive_thread(items):
         """Function for performing archiving in a separate thread."""
-        if not items:
+        shell = win32com.client.Dispatch("WScript.Shell")
+        selected_items = shell.Selection.Item()
+        item = selected_items(0).Path
+
+        if not item:
             root = tk.Tk()
             root.withdraw()
             CTkMessagebox(title="Error", message="No file or folder selected.")
             root.mainloop()
             return
 
-        for item in items:
-            try:
-                compress_file(item)
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Success", message=f"'{item}' successfully archived.")
-                root.mainloop()
-            except Exception as e:
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Error", message=f"Error archiving '{item}': {e}")
-                root.mainloop()
+        try:
+            compress_file(item)
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Success", message=f"'{item}' successfully archived.")
+            root.mainloop()
+
+            # Открываем папку с архивом
+            folder_path = os.path.dirname(item)
+            subprocess.Popen(f'explorer /select,"{folder_path}"') 
+
+        except Exception as e:
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Error", message=f"Error archiving '{item}': {e}")
+            root.mainloop()
 
     # Create and start a separate thread for archiving
     thread = threading.Thread(target=archive_thread, args=(sys.argv[1:],))
@@ -225,48 +261,54 @@ def extract_selected():
     """
     def extract_thread(items):
         """Function to perform extraction in a separate thread."""
-        if not items:
+        shell = win32com.client.Dispatch("WScript.Shell")
+        selected_items = shell.Selection.Item()
+        item = selected_items(0).Path
+
+        if not item:
             root = tk.Tk()
             root.withdraw()
             CTkMessagebox(title="Error", message="No file or folder selected.")
             root.mainloop()
             return
 
-        for item in items:
-            print(item)
-            # Check if the file has a valid archive extension
-            if not any(item.lower().endswith(ext) for ext in ['.zis', '.zip', '.7zip']):
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Error", message=f"Unsupported file type: '{item}'")
-                root.mainloop()
-                continue  # Skip to the next file
+        print(item)
+        # Check if the file has a valid archive extension
+        if not any(item.lower().endswith(ext) for ext in ['.zis', '.zip', '.7zip']):
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Error", message=f"Unsupported file type: '{item}'")
+            root.mainloop()
+            return  # Skip to the next file
 
-            try:
-                decompress_file(item)
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Success", message=f"'{item}' successfully extracted.")
-                root.mainloop()
-            except RuntimeError as e:  # Catch potential password errors
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
-                root.mainloop()
-            except Exception as e:
-                root = tk.Tk()
-                root.withdraw()
-                CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
-                root.mainloop()
-    #  Исправление: начинаем с индекса 2, чтобы получить пути к файлам
-    file_paths = sys.argv[2:]  
+        try:
+            decompress_file(item)
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Success", message=f"'{item}' successfully extracted.")
+            root.mainloop()
+
+            # Открываем папку с распакованными файлами
+            file_path = os.path.splitext(item)[0]  # Убираем расширение архива
+            subprocess.Popen(f'explorer /select,"{file_path}"')
+
+        except RuntimeError as e:  # Catch potential password errors
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
+            root.mainloop()
+        except Exception as e:
+            root = tk.Tk()
+            root.withdraw()
+            CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
+            root.mainloop()
 
     # Create and start a separate thread for extraction
-    thread = threading.Thread(target=extract_thread, args=(file_paths,))
+    thread = threading.Thread(target=extract_thread, args=(sys.argv[1:],))
     thread.start()
     thread.join()  # Wait for the thread to complete
 
-def create_reg_key():
+def create_reg_key(type=None):
     """Creates a registry entry for the context menu."""
     try:
         python_path = sys.executable
@@ -312,12 +354,13 @@ def create_reg_key():
         return False
 
 
-def delete_reg_key():
+def delete_reg_key(type=None):
     """Deletes existing registry entries.
 
     This function now removes the incorrect entry that was associated with folders 
     and adds the removal of the specific file type entries. 
     """
+
     try:
         key_paths = [
             r"Software\Classes\*\shell\ArchiveFile",
@@ -330,6 +373,8 @@ def delete_reg_key():
         for key_path in key_paths:
             winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path + r"\command")
             winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path)
+        if type:
+            print('Done')
         return True
     except FileNotFoundError:
         return True  # Key not found - this is normal
@@ -344,10 +389,10 @@ if __name__ == "__main__":
     elif len(sys.argv) > 1: # If there are arguments, assume it's for archiving
         compress_selected()
     else:
-        if delete_reg_key() and create_reg_key():
-            print("Registry entry successfully updated.")
-        else:
-            print("Error updating registry entry.")
+        #if delete_reg_key() and create_reg_key():
+        #    print("Registry entry successfully updated.")
+        #else:
+        #    print("Error updating registry entry.")
 
         app = WinPWindow()
         app.mainloop()
