@@ -24,7 +24,7 @@ WinP is a user-friendly application built with Python and customtkinter, providi
 2. **Clone or Download:** Get the WinP repository from GitHub:
 
    ```bash
-   git clone https://github.com/your-username/winp.git 
+   git clone https://github.com/sl1dee36/winp.git 
    ```
 
 3. **Install Dependencies:** Navigate to the project directory and install the required packages:
