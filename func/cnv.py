@@ -1,6 +1,6 @@
 import os
 
-def get_file_path(file_path):
+def get_file_path(file_path=None):
     """
     Ask user for the file path and validate its existence.
 
