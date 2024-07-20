@@ -12,6 +12,8 @@ import subprocess
 import os
 import sys
 import win32com.client
+import win32con
+import win32api
 import winreg
 from pathlib import Path
 from PIL import Image
@@ -22,9 +24,9 @@ import time
 import pystray
 from PIL import Image
 import json
+import datetime
 
 from data.lang import translations
-
 
 class WinPWindow(CTk):
     def __init__(self):
@@ -40,8 +42,10 @@ class WinPWindow(CTk):
         self.fn_frame = None
         self.arh_frame = None
         self.cnv_frame_l = None
+        self.cnv_frame_m = None
         self.cnv_frame_r = None
         self.stg_frame = None
+        self.Extended_menu = False
 
         self.load_settings()
         self.load_functions_frame()
@@ -84,6 +88,7 @@ class WinPWindow(CTk):
             self.fn_frame,
             self.arh_frame,
             self.cnv_frame_l,
+            self.cnv_frame_m,
             self.cnv_frame_r,
             self.stg_frame,
         ]:
@@ -179,12 +184,13 @@ class WinPWindow(CTk):
     def clear_frame(self):
         
         for frame in [self.stg_frame, self.fn_frame, self.arh_frame, 
-                      self.cnv_frame_l, self.cnv_frame_r, self.lf_frame]:
+                      self.cnv_frame_l, self.cnv_frame_m, self.cnv_frame_r, self.lf_frame]:
             try:
                 frame.forget()
             except AttributeError:
                 pass
         
+        self.Extended_menu = False
         self.geometry("300x400")
 
     def load_functions_frame(self):
@@ -222,17 +228,24 @@ class WinPWindow(CTk):
         # Translate initial text
         self.update_language() 
 
+    
+
+
     def load_cnv_frame(self):
         """Loads the frame for file conversion with input and output options."""
         self.clear_frame()
-        self.geometry("700x400")
+        self.geometry("710x400")
 
         self.cnv_frame_l = CTkFrame(self, width=300, height=400)
         self.cnv_frame_l.pack(padx=5, pady=5, side=LEFT)
         self.cnv_frame_l.propagate(0)
 
-        self.cnv_frame_r = CTkFrame(self, width=400, height=400, corner_radius=0)
-        self.cnv_frame_r.pack(side=LEFT)
+        self.cnv_frame_m = CTkFrame(self, width=400, height=400, corner_radius=0)
+        self.cnv_frame_m.pack(side=LEFT)
+        self.cnv_frame_m.propagate(0)
+
+        self.cnv_frame_r = CTkFrame(self, width=400, height=400)
+        self.cnv_frame_r.pack(padx=5, pady=5, side=LEFT)
         self.cnv_frame_r.propagate(0)
 
         # --- Left Frame (File Input) ---
@@ -240,7 +253,8 @@ class WinPWindow(CTk):
         def select_file():
             """Opens a dialog to select a file and updates the file path label."""
             self.file_path = filedialog.askopenfilename(
-                initialdir="/", title=translations[self.current_language]["Select File"]
+                initialdir="/",
+                title=translations[self.current_language]["Select File"],
             )
             if self.file_path:
                 display_file_info()
@@ -249,24 +263,30 @@ class WinPWindow(CTk):
 
         def display_file_info():
             """Displays file information in the file_info_label."""
-            if not self.file_path:  # Проверка, выбран ли файл
+            if not self.file_path:  # Check if a file is selected
                 return
 
             file_name = os.path.basename(self.file_path)
             file_size = os.path.getsize(self.file_path)
             file_type = os.path.splitext(self.file_path)[1].lower()
-            
-            # Получаем время создания, изменения и последнего открытия
+
+            # Get creation, modification, and last open times
             file_create_timestamp = os.path.getctime(self.file_path)
             file_modify_timestamp = os.path.getmtime(self.file_path)
             file_access_timestamp = os.path.getatime(self.file_path)
 
-            # Преобразуем временные метки в читаемый формат
-            file_create_data = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(file_create_timestamp))
-            file_update_data = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(file_modify_timestamp))
-            file_last_open_data = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(file_access_timestamp))
+            # Convert timestamps to readable format
+            file_create_data = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(file_create_timestamp)
+            )
+            file_update_data = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(file_modify_timestamp)
+            )
+            file_last_open_data = time.strftime(
+                "%Y-%m-%d %H:%M:%S", time.localtime(file_access_timestamp)
+            )
 
-            # Получаем атрибуты файла
+            # Get file attributes
             file_modify = oct(os.stat(self.file_path).st_mode)[-3:]
             if file_modify == "666":
                 file_modify = "None"
@@ -283,16 +303,20 @@ class WinPWindow(CTk):
                 f"---------------------------\n"
                 f"{translations[self.current_language]['Attributes']} : {file_modify}\n"
             )
-            self.file_info_label.configure(text=file_info_text,justify=LEFT)
+            self.file_info_label.configure(text=file_info_text, justify=LEFT)
 
         # Button to select a file
         select_file_button = CTkButton(
-            self.cnv_frame_l, text=translations[self.current_language]["Select File"], command=select_file
+            self.cnv_frame_l,
+            text=translations[self.current_language]["Select File"],
+            command=select_file,
         )
         select_file_button.pack(padx=5, pady=10)
 
         self.file_path = ""
-        self.file_info_label = CTkLabel(self.cnv_frame_l, text="")  # Новая метка для информации о файле
+        self.file_info_label = CTkLabel(
+            self.cnv_frame_l, text=""
+        )  # New label for file information
         self.file_info_label.pack(pady=5)
 
         # --- Right Frame (Conversion Options) ---
@@ -303,8 +327,13 @@ class WinPWindow(CTk):
 
         self.segment_var = tk.StringVar(value="Image")
         segmented_button = CTkSegmentedButton(
-            self.cnv_frame_r,
-            values=[translations[self.current_language]["Image"], translations[self.current_language]["Video"], translations[self.current_language]["Audio"], translations[self.current_language]["Document"]],
+            self.cnv_frame_m,
+            values=[
+                translations[self.current_language]["Image"],
+                translations[self.current_language]["Video"],
+                translations[self.current_language]["Audio"],
+                translations[self.current_language]["Document"],
+            ],
             command=segmented_button_callback,
             variable=self.segment_var,
         )
@@ -312,18 +341,19 @@ class WinPWindow(CTk):
 
         # Conversion Options (Dynamically updated)
         self.conversion_options_label = CTkLabel(
-            self.cnv_frame_r, text=translations[self.current_language]["Select a file to see conversion options."]
+            self.cnv_frame_m,
+            text=translations[self.current_language][
+                "Select a file to see conversion options."
+            ],
         )
         self.conversion_options_label.pack(pady=5)
 
-        self.option_menu = CTkOptionMenu(
-            self.cnv_frame_r, variable=None, values=[]
-        )
+        self.option_menu = CTkOptionMenu(self.cnv_frame_m, variable=None, values=[])
         self.option_menu.pack(pady=10)
 
         # --- Conversion Progress Label ---
         self.conversion_progress = CTkLabel(
-            self.cnv_frame_r, text="", font=("Arial", 10)
+            self.cnv_frame_m, text="", font=("Arial", 10)
         )
         self.conversion_progress.pack()
 
@@ -335,7 +365,10 @@ class WinPWindow(CTk):
                 subprocess.Popen(f'explorer /select,"{folder_path}"')
             else:
                 CTkMessagebox(
-                    title=translations[self.current_language]["Error"], message=translations[self.current_language]["File not yet converted or not found."]
+                    title=translations[self.current_language]["Error"],
+                    message=translations[self.current_language][
+                        "File not yet converted or not found."
+                    ],
                 )
 
         # --- Bottom Frame (Conversion Button and Open Location Button) ---
@@ -343,23 +376,26 @@ class WinPWindow(CTk):
             """Handles the file conversion process."""
             if self.file_path:
                 # Update progress label
-                self.conversion_progress.configure(text=translations[self.current_language]["Converting..."])
-                self.cnv_frame_r.update()  # Update the frame to show the label
+                self.conversion_progress.configure(
+                    text=translations[self.current_language]["Converting..."]
+                )
+                self.cnv_frame_m.update()  # Update the frame to show the label
 
                 try:
                     output_format = self.option_menu.get().lower()
                     self.converted_file_path = self.convert_to(
                         self.file_path, output_format
                     )
-                    self.conversion_progress.configure(text=translations[self.current_language]["Conversion complete!"])
 
                     # Enable or create the "Open File Location" button
                     if hasattr(self, "open_location_button"):
                         self.open_location_button.configure(state="normal")
                     else:
                         self.open_location_button = CTkButton(
-                            self.cnv_frame_r,
-                            text=translations[self.current_language]["Open File Location"],
+                            self.cnv_frame_m,
+                            text=translations[self.current_language][
+                                "Open File Location"
+                            ],
                             command=open_file_location,
                         )
                         self.open_location_button.pack(pady=10)
@@ -369,12 +405,126 @@ class WinPWindow(CTk):
                         text=f"{translations[self.current_language]['Conversion failed:']} {str(e)}"
                     )
             else:
-                CTkMessagebox(title=translations[self.current_language]["Error"], message=translations[self.current_language]["No file selected for conversion!"])
+                CTkMessagebox(
+                    title=translations[self.current_language]["Error"],
+                    message=translations[self.current_language][
+                        "No file selected for conversion!"
+                    ],
+                )
 
         self.download_button = CTkButton(
-            self.cnv_frame_r, text=translations[self.current_language]["Convert"], command=convert_file
+            self.cnv_frame_m,
+            text=translations[self.current_language]["Convert"],
+            command=convert_file,
         )
         self.download_button.pack(pady=10)
+
+        # --- Right Frame (File Editor) ---
+
+        # Name
+        self.name_label = CTkLabel(self.cnv_frame_r, text="Name:")
+        self.name_label.pack(pady=(10, 0))
+        self.name_entry = CTkEntry(self.cnv_frame_r, width=300)
+        self.name_entry.pack(pady=(0, 10))
+
+        # Description (Not implemented yet)
+        self.description_label = CTkLabel(self.cnv_frame_r, text="Description:")
+        self.description_label.pack(pady=(10, 0))
+        self.description_entry = CTkEntry(self.cnv_frame_r, width=300)
+        self.description_entry.pack(pady=(0, 10))
+
+        # Creation Date
+        self.creation_date_label = CTkLabel(
+            self.cnv_frame_r, text="Creation Date (YYYY-MM-DD HH:MM:SS):"
+        )
+        self.creation_date_label.pack(pady=(10, 0))
+        self.creation_date_entry = CTkEntry(self.cnv_frame_r, width=300)
+        self.creation_date_entry.pack(pady=(0, 10))
+
+        # Modification Date
+        self.modification_date_label = CTkLabel(
+            self.cnv_frame_r, text="Modification Date (YYYY-MM-DD HH:MM:SS):"
+        )
+        self.modification_date_label.pack(pady=(10, 0))
+        self.modification_date_entry = CTkEntry(self.cnv_frame_r, width=300)
+        self.modification_date_entry.pack(pady=(0, 10))
+
+        # Permissions (Read-only checkbox)
+        def toggle_read_only():
+            """Toggles the read-only attribute of the file."""
+            if self.file_path:
+                attrs = win32api.GetFileAttributes(self.file_path)
+                if attrs & win32con.FILE_ATTRIBUTE_READONLY:
+                    win32api.SetFileAttributes(
+                        self.file_path,
+                        attrs & ~win32con.FILE_ATTRIBUTE_READONLY,
+                    )
+                    self.read_only_checkbox.deselect()
+                else:
+                    win32api.SetFileAttributes(
+                        self.file_path,
+                        attrs | win32con.FILE_ATTRIBUTE_READONLY,
+                    )
+                    self.read_only_checkbox.select()
+
+        self.read_only_checkbox = CTkCheckBox(
+            self.cnv_frame_r,
+            text="Read-only",
+            command=toggle_read_only,
+            onvalue="on",
+            offvalue="off",
+        )
+        self.read_only_checkbox.pack(pady=(10, 0))
+
+        # Save Button
+        def save_changes():
+            """Saves the changes to the file."""
+            if self.file_path:
+                try:
+                    # Update file name
+                    new_file_name = self.name_entry.get()
+                    if new_file_name != os.path.basename(self.file_path):
+                        new_file_path = os.path.join(
+                            os.path.dirname(self.file_path), new_file_name
+                        )
+                        os.rename(self.file_path, new_file_path)
+                        self.file_path = new_file_path
+
+                    # Update description (Not implemented yet)
+                    # ...
+
+                    # Update creation and modification dates
+                    creation_datetime = datetime.strptime(
+                        self.creation_date_entry.get(), "%Y-%m-%d %H:%M:%S"
+                    )
+                    modification_datetime = datetime.strptime(
+                        self.modification_date_entry.get(), "%Y-%m-%d %H:%M:%S"
+                    )
+                    win32api.SetFileTime(
+                        self.file_path,
+                        creation_datetime,
+                        modification_datetime,
+                        modification_datetime,
+                    )
+
+                    # Display success message
+                    CTkMessagebox(
+                        title=translations[self.current_language]["Success"],
+                        message="File attributes updated successfully.",
+                    )
+
+                    # Update file info label
+                    display_file_info()
+                except Exception as e:
+                    CTkMessagebox(
+                        title=translations[self.current_language]["Error"],
+                        message=f"Error updating file attributes: {e}",
+                    )
+
+        self.save_button = CTkButton(
+            self.cnv_frame_r, text="Save Changes", command=save_changes
+        )
+        self.save_button.pack(pady=5,side=BOTTOM)
 
         # "Back" button
         bck_button = CTkButton(
@@ -384,20 +534,35 @@ class WinPWindow(CTk):
         )
         bck_button.pack(padx=5, pady=5, side=BOTTOM)
 
-        # --- Function to update conversion options based on file type ---
+        def toggle_extended_menu():
+            """Toggles the extended menu and resizes the window."""
+            self.Extended_menu = not self.Extended_menu  # Toggle the menu state
+            if self.Extended_menu:
+                self.geometry("1100x400")  # Expand the window
+            else:
+                self.geometry("710x400")  # Collapse the window
+
+        ext_button = CTkButton(
+            self.cnv_frame_m,
+            text=translations[self.current_language]["Extended"],
+            command=toggle_extended_menu  # Assign the function to the button
+        )
+        ext_button.pack(padx=5, pady=5, side=BOTTOM)
+
         def update_conversion_options():
-            if self.file_path: # Проверяем, выбран ли файл
+            """Updates the conversion options based on the selected file type and category."""
+            if self.file_path:
                 file_ext = os.path.splitext(self.file_path)[1].lower()
-                selected_category = self.segment_var.get()  # Get selected category
+                selected_category = self.segment_var.get()
 
                 if selected_category == translations[self.current_language]["Image"]:
-                    supported_formats = ["PNG", "JPG", "JPEG", "GIF"]  # Example
+                    supported_formats = ["PNG", "JPG", "JPEG", "GIF"]
                 elif selected_category == translations[self.current_language]["Video"]:
-                    supported_formats = ["MP4", "AVI", "MOV"]  # Example
+                    supported_formats = ["MP4", "AVI", "MOV"]
                 elif selected_category == translations[self.current_language]["Audio"]:
-                    supported_formats = ["MP3", "WAV", "OGG"]  # Example
+                    supported_formats = ["MP3", "WAV", "OGG"]
                 elif selected_category == translations[self.current_language]["Document"]:
-                    supported_formats = ["TXT", "PDF", "DOC", "DOCX"]  # Example
+                    supported_formats = ["TXT", "PDF", "DOC", "DOCX"]
                 else:
                     supported_formats = []
 
@@ -409,6 +574,41 @@ class WinPWindow(CTk):
                     self.option_menu.set(
                         supported_formats[0]
                     )  # Set a default option
+
+        def update_editor_fields():
+            """Updates the editor fields with current file information."""
+            if self.file_path:
+                file_name = os.path.basename(self.file_path)
+                self.name_entry.delete(0, END)
+                self.name_entry.insert(0, file_name)
+
+                # Update creation and modification dates
+                creation_timestamp = os.path.getctime(self.file_path)
+                modification_timestamp = os.path.getmtime(self.file_path)
+
+                # Update creation and modification dates
+                creation_timestamp = os.path.getctime(self.file_path)
+                modification_timestamp = os.path.getmtime(self.file_path)
+
+                creation_datetime = datetime.datetime.fromtimestamp(creation_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+                modification_datetime = datetime.datetime.fromtimestamp(modification_timestamp).strftime("%Y-%m-%d %H:%M:%S")
+
+                # Update entry widgets only if they are empty
+                if not self.creation_date_entry.get():
+                    self.creation_date_entry.insert(0, creation_datetime)
+
+                if not self.modification_date_entry.get():
+                    self.modification_date_entry.insert(0, modification_datetime)
+
+                # Set read-only checkbox
+                attrs = win32api.GetFileAttributes(self.file_path)
+                if attrs & win32con.FILE_ATTRIBUTE_READONLY:
+                    self.read_only_checkbox.select()
+                else:
+                    self.read_only_checkbox.deselect()
+
+        # Call update_editor_fields when a file is selected
+        select_file_button.configure(command=lambda: [select_file(), update_editor_fields()])
 
     def load_stg_frame(self):
         self.lf_frame.forget()
@@ -690,7 +890,7 @@ class WinPWindow(CTk):
                     self.open_location_button.configure(state="normal")
                 else:
                     self.open_location_button = CTkButton(
-                        self.cnv_frame_r,
+                        self.cnv_frame_m,
                         text=translations[self.current_language]["Open File Location"],
                         command=open_file_location,
                     )
@@ -710,7 +910,7 @@ class WinPWindow(CTk):
         print(f"Путь вывода: {output_file_path}")
 
         self.conversion_progress.configure(text=translations[self.current_language]["Converting..."])
-        self.cnv_frame_r.update()  # Обновляем фрейм, чтобы отобразить метку
+        self.cnv_frame_m.update()  # Обновляем фрейм, чтобы отобразить метку
 
         # Создаем и запускаем поток для конвертации
         thread = threading.Thread(target=conversion_thread)
