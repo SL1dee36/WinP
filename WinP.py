@@ -6,7 +6,8 @@ import tkinter as tk
 from tkinter import filedialog
 from customtkinter import *
 from CTkMessagebox import CTkMessagebox
-from func.arh import compress_file, decompress_file
+from packages.func.arh import compress_file, decompress_file
+from packages.func.tmp import *
 from webbrowser import open_new
 import subprocess
 import os
@@ -15,6 +16,7 @@ import win32com.client
 import win32con
 import win32api
 import winreg
+import tempfile
 from pathlib import Path
 from PIL import Image
 import moviepy.editor as mp
@@ -25,16 +27,28 @@ import pystray
 from PIL import Image
 import json
 import datetime
+import shutil
+import gc
+import shutil
+import psutil
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import matplotlib.animation as animation
 
-from data.lang import translations
+from packages.data.lang import translations
 
 class WinPWindow(CTk):
     def __init__(self):
         super().__init__()
 
         self.current_language = "en"  # Default language
-        self.title("WinP: F20e7")
-        # self.iconbitmap("assets/winp.ico")
+        self.title("WinP: F24e7")
+
+        try: self.iconbitmap("assets/winp.ico") 
+        except: 
+            try: self.iconbitmap("_internal/winp.ico")  
+            except: pass
+
         self.geometry("300x400")
         self.resizable(False, False)
 
@@ -45,6 +59,9 @@ class WinPWindow(CTk):
         self.cnv_frame_m = None
         self.cnv_frame_r = None
         self.stg_frame = None
+        self.tmp_frame = None
+        self.tmp_frame_r = None
+
         self.Extended_menu = False
 
         self.load_settings()
@@ -57,7 +74,7 @@ class WinPWindow(CTk):
     def load_settings(self):
         """Loads settings from settings.json."""
         try:
-            with open("data/settings.json", "r") as f:
+            with open("packages/data/settings.json", "r") as f:
                 settings = json.load(f)
             self.current_language = settings.get("language", "en")
             self.run_on_startup = settings.get("run_on_startup", False)
@@ -72,7 +89,7 @@ class WinPWindow(CTk):
             "language": self.current_language,
             "run_on_startup": self.run_on_startup,
         }
-        with open(r"data/settings.json", "w") as f:
+        with open(r"packages/data/settings.json", "w") as f:
             json.dump(settings, f)
 
     def change_language(self, new_language):
@@ -91,6 +108,7 @@ class WinPWindow(CTk):
             self.cnv_frame_m,
             self.cnv_frame_r,
             self.stg_frame,
+            self.tmp_frame,
         ]:
             try:
                 self.update_widget_language(frame)
@@ -120,8 +138,11 @@ class WinPWindow(CTk):
             self.icon.stop()  # Убираем из трея
 
         # Загружаем иконку (замените на путь к вашей иконке)
-        icon_image = Image.open(r"assets\winp.ico")
-
+        try: icon_image = Image.open(r"assets\winp.ico")
+        except:
+            try: icon_image = Image.open(r"_internal\winp.ico")
+            except: on_show_window()
+            
         # Создаем меню для иконки
         menu = pystray.Menu(
             pystray.MenuItem(translations[self.current_language]["Show"], on_show_window),
@@ -169,7 +190,7 @@ class WinPWindow(CTk):
         fncs = {
             "ARH": self.load_arh_frame,
             "CNV": self.load_cnv_frame,
-            "TMP": lambda: print("TMP"),
+            "TMP": self.load_tmp_frame,
             "STG": self.load_stg_frame,
         }
 
@@ -184,7 +205,8 @@ class WinPWindow(CTk):
     def clear_frame(self):
         
         for frame in [self.stg_frame, self.fn_frame, self.arh_frame, 
-                      self.cnv_frame_l, self.cnv_frame_m, self.cnv_frame_r, self.lf_frame]:
+                      self.cnv_frame_l, self.cnv_frame_m, self.cnv_frame_r, 
+                      self.lf_frame, self.tmp_frame, self.tmp_frame_r]:
             try:
                 frame.forget()
             except AttributeError:
@@ -229,6 +251,142 @@ class WinPWindow(CTk):
         self.update_language() 
 
     
+
+
+
+
+    def load_tmp_frame(self):
+        """Loads the frame with optimization options."""
+        self.clear_frame()
+        self.geometry("900x400")
+
+        self.tmp_frame = CTkFrame(self, width=300, height=400)
+        self.tmp_frame.pack(padx=5, pady=5,side=LEFT)
+        self.tmp_frame.propagate(0)
+
+        self.tmp_frame_r = CTkFrame(self, width=600, height=400, corner_radius=0)
+        self.tmp_frame_r.pack(side=LEFT)
+        self.tmp_frame_r.propagate(0)
+
+        # Buttons for each optimization action
+        clear_temp_button = CTkButton(
+            self.tmp_frame,
+            text=translations[self.current_language]["Clear Temp Folder"],
+            command=lambda: self.handle_clear_temp_folder(),
+        )
+        clear_temp_button.pack(pady=10)
+
+        check_registry_button = CTkButton(
+            self.tmp_frame,
+            text=translations[self.current_language]["Check Registry"],
+            command=lambda: self.handle_check_registry(),
+        )
+        check_registry_button.pack(pady=10)
+
+        free_ram_button = CTkButton(
+            self.tmp_frame,
+            text=translations[self.current_language]["Free Up RAM"],
+            command=lambda: self.handle_free_ram(),
+        )
+        free_ram_button.pack(pady=10)
+
+        # "Back" button
+        bck_button = CTkButton(
+            self.tmp_frame,
+            text=translations[self.current_language]["Back"],
+            command=lambda: self.load_functions_frame(),
+        )
+        bck_button.pack(padx=5, pady=5, side=BOTTOM)
+
+# График использования RAM
+        self.fig, self.ax = plt.subplots(figsize=(5, 3))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=self.tmp_frame_r)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True)
+        self.ani = animation.FuncAnimation(self.fig, self.update_graph, interval=1000)
+        self.show_used_processes()
+        
+    def show_used_processes(self):
+        self.tmp_scrlb_frame = CTkScrollableFrame(self.tmp_frame_r,width=600)
+        self.tmp_scrlb_frame.pack(padx=5,pady=5,side=BOTTOM)
+        #self.tmp_scrlb_frame.propagate(0)
+        for proc in psutil.process_iter(['pid', 'name', 'username', 'memory_percent']):
+            try:
+                process = proc.info
+                label = CTkLabel(master=self.tmp_scrlb_frame, text=f"PID: {process['pid']}, Name: {process['name']}, User: {process['username']}, RAM: {process['memory_percent']:.1f}%")
+                label.pack(anchor="w")
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                pass
+
+    def update_graph(self, i):
+        """Обновляет данные графика использования RAM."""
+        self.ax.clear()
+        ram = psutil.virtual_memory()
+        self.ax.bar(["Used", "Free"], [ram.percent, 100 - ram.percent])
+        self.ax.set_ylim(0, 100)
+        self.ax.set_ylabel("RAM Usage (%)")
+        self.ax.set_title("Real-Time RAM Usage")
+
+    def handle_clear_temp_folder(self):
+        deleted_files, errors = clear_temp_folder()
+        if deleted_files:
+            deleted_message = "\n".join(
+                [f"{filename} - {translations[self.current_language]['deleted']}" for filename in deleted_files]
+            )
+            self.show_success(deleted_message)
+        if errors:
+            error_message = "\n".join(
+                [f"{translations[self.current_language]['Failed to delete']} {filename}. {e}" for filename, e in errors]
+            )
+            self.show_error(error_message)
+
+    def handle_check_registry(self):
+        success, result = check_registry()
+        if success:
+            if result:
+                issues_str = "\n".join(result)
+                self.show_error(
+                    f"{translations[self.current_language]['Registry issues found:']}\n{issues_str}"
+                )
+            else:
+                self.show_success(translations[self.current_language]["No registry issues found."])
+        else:
+            self.show_error(f"{translations[self.current_language]['Failed to check registry']}. {result}") 
+
+    def handle_free_ram(self):
+        result = free_ram()
+        if result:
+            self.show_info(
+                translations[self.current_language]["RAM cleaning attempt completed."]
+            )
+        else:
+            self.show_error(translations[self.current_language]["Failed to free RAM"])
+
+    def show_error(self, message):
+        """Shows an error message box."""
+        CTkMessagebox(
+            title=translations[self.current_language]["Error"],
+            message=message,
+            icon="cancel",
+        )
+
+    def show_success(self, message):
+        """Shows a success message box."""
+        CTkMessagebox(
+            title=translations[self.current_language]["Success"],
+            message=message,
+            icon="check",
+        )
+
+    def show_info(self, message):
+        """Shows an information message box."""
+        CTkMessagebox(
+            title=translations[self.current_language]["Information"],
+            message=message,
+            icon="info",
+        )
+
+
+
 
 
     def load_cnv_frame(self):
