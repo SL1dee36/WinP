@@ -94,6 +94,7 @@ translations = {
         "Audio": "Аудио",
         "Document": "Документ",
         
+        "Success": "Success",
         "Extended": "Расширенное меню",
         "Clear Temp Folder": "Очистить папку Temp",
         "Check Registry": "Проверить реестр",
@@ -167,7 +168,7 @@ translations = {
         "Audio": "Audio",
         "Document": "Dokument",
 
-
+        "Success": "Success",
         "Extended": "Erweitertes Menü",
         "Clear Temp Folder": "Temp-Ordner bereinigen",
         "Check Registry": "Registrierung überprüfen",
@@ -242,7 +243,7 @@ translations = {
         "Audio": "Audio",
         "Document": "Document",
 
-
+        "Success": "Success",
         "Extended": "Menu étendu",
         "Clear Temp Folder": "Nettoyer le dossier temporaire",
         "Check Registry": "Vérifier le registre",
@@ -317,7 +318,7 @@ translations = {
         "Audio": "Աուդիո",
         "Document": "Փաստաթուղթ",
 
-
+        "Success": "Success",
         "Extended": "Ընդլայնված ցանկ",
         "Clear Temp Folder": "Մաքրել Temp պանակը",
         "Check Registry": "Ստուգել գրանցամատյանը",
