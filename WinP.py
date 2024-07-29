@@ -35,6 +35,7 @@ import psutil
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
+import pywinstyles
 
 from packages.data.lang import translations
 
@@ -43,9 +44,9 @@ class WinPWindow(CTk):
         super().__init__()
 
         self.current_language = "en"  # Default language
-        self.title("WinP: F24e7")
+        self.title("WinP: F29e7")
 
-        try: self.iconbitmap("assets/winp.ico") 
+        try: self.iconbitmap("packages/assets/winp.ico") 
         except: 
             try: self.iconbitmap("_internal/winp.ico")  
             except: pass
@@ -892,46 +893,71 @@ class WinPWindow(CTk):
                 self.file_path = filedialog.askdirectory(
                     initialdir="/", title="Select Folder"
                 )
-            file_path_label.configure(text=self.file_path)
+            self.file_path_label.configure(text=self.file_path)
 
-        # Button for selecting file/folder
-        select_target_button = CTkButton(
-            self.arh_frame, text=translations[self.current_language]["Select"], command=select_target
+        def drop_func( files):
+            for file in files:
+                print(file)
+
+                self.file_path = f"{file}"
+                self.file_path_label.configure(text=f'{os.path.basename(self.file_path)}')
+        # Button for selecting file/folder\
+
+        self.dragndrop_place = CTkFrame(self.arh_frame,width=250,height=120)
+        self.dragndrop_place.pack(pady=5,padx=15)
+        self.dragndrop_place.propagate(0)
+
+        self.dragndrop_label = CTkLabel(self.dragndrop_place,text='\n\nDrag & Drop\nor',width=250,height=60)#translations[self.current_language]["File/Folder not selected"])
+        self.dragndrop_label.pack(padx=5)
+
+        pywinstyles.apply_dnd(self.dragndrop_label, drop_func)
+
+        self.select_target_button = CTkButton(
+            self.dragndrop_place, text=translations[self.current_language]["Select"], command=select_target,width=250
         )
-        select_target_button.pack(padx=5, pady=5)
+        self.select_target_button.pack(padx=5, pady=5,side=BOTTOM)
 
         # Label to display the selected path
-        file_path_label = CTkLabel(self.arh_frame, text=translations[self.current_language]["File/Folder not selected"])
-        file_path_label.pack(pady=5)
+        self.file_path_label = CTkLabel(self.arh_frame, text=translations[self.current_language]["File/Folder not selected"])
+        self.file_path_label.pack(pady=5)
+
+
+        self.file_radiobutton_frame = CTkFrame(self.arh_frame,width=250,height=50)
+        self.file_radiobutton_frame.pack(padx=5)
+        self.file_radiobutton_frame.propagate(0)
 
         # Radiobutton to choose between file and folder
-        file_radiobutton = CTkRadioButton(
-            self.arh_frame, text="File", variable=self.target_type, value="file"
+        self.file_radiobutton = CTkRadioButton(
+            self.file_radiobutton_frame, text="File", variable=self.target_type, value="file"
         )
-        file_radiobutton.pack(pady=5)
-        folder_radiobutton = CTkRadioButton(
-            self.arh_frame, text="Folder", variable=self.target_type, value="folder"
+        self.file_radiobutton.pack(padx=5,pady=5,side=LEFT)
+        self.folder_radiobutton = CTkRadioButton(
+            self.file_radiobutton_frame, text="Folder", variable=self.target_type, value="folder"
         )
-        folder_radiobutton.pack(pady=5)
+        self.folder_radiobutton.pack(padx=5,pady=5,side=LEFT)
+
+        self.use_password_frame = CTkFrame(self.arh_frame,width=250,height=50)
+        self.use_password_frame.pack(padx=5,pady=5)
+        self.use_password_frame.propagate(0)
 
         # Checkbox to enable password usage
         self.use_password = IntVar(value=0)
-        password_checkbox = CTkCheckBox(
-            self.arh_frame,
-            text=translations[self.current_language]["Use Password?"],
+        self.password_checkbox = CTkCheckBox(
+            self.use_password_frame,
+            text=f'{translations[self.current_language]["Use Password?"]} ',
             variable=self.use_password,
             command=self.toggle_password_entry,
         )
-        password_checkbox.pack(pady=5)
+        self.password_checkbox.pack(padx=5,pady=5,side=LEFT)
 
         # Entry field for password (initially disabled)
         self.password_entry = CTkEntry(
-            self.arh_frame,
+            self.use_password_frame,
             placeholder_text=translations[self.current_language]["Enter Password"],
             show="*",
             state="disabled",
         )
-        self.password_entry.pack(pady=5)
+        self.password_entry.pack(padx=5,pady=5,side=LEFT)
 
         # Functions for archiving and extracting
         def archive():
@@ -970,15 +996,19 @@ class WinPWindow(CTk):
                         title=translations[self.current_language]["Error"], message=f"Error during extraction: {e}"
                     )
 
+        self.arhh_frame = CTkFrame(self.arh_frame,width=250,height=50)
+        self.arhh_frame.pack(padx=5,pady=5)
+        self.arhh_frame.propagate(0)
+
         # Buttons for archiving and extracting
-        archive_button = CTkButton(self.arh_frame, text=translations[self.current_language]["Archive"], command=archive)
-        archive_button.pack(pady=5)
-        extract_button = CTkButton(self.arh_frame, text=translations[self.current_language]["Extract"], command=extract)
-        extract_button.pack(pady=5)
+        self.archive_button = CTkButton(self.arhh_frame, text=translations[self.current_language]["Archive"], command=archive,width=115)
+        self.archive_button.pack(pady=5,padx=5,side=LEFT)
+        self.extract_button = CTkButton(self.arhh_frame, text=translations[self.current_language]["Extract"], command=extract,width=115)
+        self.extract_button.pack(pady=5,padx=5,side=RIGHT)
 
         # "Back" button
         bck_button = CTkButton(
-            self.arh_frame, text=translations[self.current_language]["Back"], command=lambda: self.load_functions_frame()
+            self.arh_frame, text=translations[self.current_language]["Back"], command=lambda: self.load_functions_frame(),width=250
         )
         bck_button.pack(padx=5, pady=5, side=BOTTOM)
 
