@@ -8,7 +8,8 @@ from customtkinter import *
 from CTkMessagebox import CTkMessagebox
 from packages.func.arh import compress_file, decompress_file
 from packages.func.tmp import *
-from webbrowser import open_new
+from packages.func.ctmenu import *
+import webbrowser
 import subprocess
 import os
 import sys
@@ -52,14 +53,14 @@ class WinPWindow(CTk):
         self.geometry("300x400")
         self.resizable(False, False)
 
-        self.lf_frame = None
-        self.fn_frame = None
-        self.arh_frame = None
+        self.lf_frame    = None
+        self.fn_frame    = None
+        self.arh_frame   = None
         self.cnv_frame_l = None
         self.cnv_frame_m = None
         self.cnv_frame_r = None
-        self.stg_frame = None
-        self.tmp_frame = None
+        self.stg_frame   = None
+        self.tmp_frame   = None
         self.tmp_frame_r = None
 
         self.Extended_menu = False
@@ -70,27 +71,29 @@ class WinPWindow(CTk):
             "WM_DELETE_WINDOW", self.on_closing
         )  # Вызов on_closing при закрытии
 
-
     def load_settings(self):
         """Loads settings from settings.json."""
+        settings_path = "packages/data/settings.json"
         try:
-            with open("packages/data/settings.json", "r") as f:
+            with open(settings_path, "r") as f:
                 settings = json.load(f)
-            self.current_language = settings.get("language", "en")
-            self.run_on_startup = settings.get("run_on_startup", False)
+                self.current_language = settings.get("language", "en")
+                self.run_on_startup = settings.get("run_on_startup", False)
         except FileNotFoundError:
-            # If settings file not found, use default settings
+            # If settings file not found, use default settings and create the file
             self.current_language = "en"
             self.run_on_startup = False
+            self.save_settings()
 
     def save_settings(self):
         """Saves settings to settings.json."""
+        settings_path = "packages/data/settings.json"
         settings = {
             "language": self.current_language,
             "run_on_startup": self.run_on_startup,
         }
-        with open(r"packages/data/settings.json", "w") as f:
-            json.dump(settings, f)
+        with open(settings_path, "w") as f:
+            json.dump(settings, f, indent=4) # Добавляем indent для читаемости
 
     def change_language(self, new_language):
         self.current_language = new_language
@@ -244,16 +247,11 @@ class WinPWindow(CTk):
         )
         stg_button.pack(padx=5, pady=5)
 
-        dev_button = CTkButton(self.lf_frame,text=translations[self.current_language]["GitHub"],command=lambda: open_new("https://github.com/SL1dee36"))
+        dev_button = CTkButton(self.lf_frame,text=translations[self.current_language]["GitHub"],command=lambda: webbrowser.open("https://github.com/SL1dee36"))
         dev_button.pack(padx=5, pady=5, side=BOTTOM)
 
         # Translate initial text
         self.update_language() 
-
-    
-
-
-
 
     def load_tmp_frame(self):
         """Loads the frame with optimization options."""
@@ -991,12 +989,6 @@ class WinPWindow(CTk):
         else:
             self.password_entry.configure(state="disabled")
 
-    def CNV():
-        pass
-
-    def TMP():
-        pass
-
     def convert_to(self, file_path, output_format):
         """
         Converts the given file to the specified output format and saves it to the Downloads folder.
@@ -1076,214 +1068,15 @@ class WinPWindow(CTk):
 
         return output_file_path
 
-
-def compress_selected():
-    """Archives selected files or folders in a separate thread.
-
-    This function is intended to be called from the context menu integration.
-    It retrieves the selected files/folders from the command line arguments and
-    archives each of them. Error messages are displayed using CTkMessagebox.
-    """
-
-    def archive_thread(items):
-        """Function for performing archiving in a separate thread."""
-        shell = win32com.client.Dispatch("WScript.Shell")
-        selected_items = shell.Selection.Item()
-        item = selected_items(0).Path
-
-        if not item:
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(title="Error", message="No file or folder selected.")
-            root.mainloop()
-            return
-
-        try:
-            compress_file(item)
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(
-                title="Success", message=f"'{item}' successfully archived."
-            )
-            root.mainloop()
-
-            # Открываем папку с архивом
-            folder_path = os.path.dirname(item)
-            subprocess.Popen(f'explorer /select,"{folder_path}"')
-
-        except Exception as e:
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(title="Error", message=f"Error archiving '{item}': {e}")
-            root.mainloop()
-
-    # Create and start a separate thread for archiving
-    thread = threading.Thread(target=archive_thread, args=(sys.argv[1:],))
-    thread.start()
-    thread.join()  # Wait for the thread to complete
-
-
-def extract_selected():
-    """Extracts selected archive files in a separate thread.
-
-    Similar to `compress_selected`, this function handles the context menu action
-    for extraction. It iterates through the provided file paths, attempting to
-    decompress each one. Any errors encountered during extraction are displayed
-    using CTkMessagebox.
-
-    This version also filters the provided file paths to only process files with
-    the extensions .zis, .zip, or .7zip.
-    """
-
-    def extract_thread(items):
-        """Function to perform extraction in a separate thread."""
-        shell = win32com.client.Dispatch("WScript.Shell")
-        selected_items = shell.Selection.Item()
-        item = selected_items(0).Path
-
-        if not item:
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(title="Error", message="No file or folder selected.")
-            root.mainloop()
-            return
-
-        print(item)
-        # Check if the file has a valid archive extension
-        if not any(item.lower().endswith(ext) for ext in [".zis", ".zip", ".7zip"]):
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(
-                title="Error", message=f"Unsupported file type: '{item}'"
-            )
-            root.mainloop()
-            return  # Skip to the next file
-
-        try:
-            decompress_file(item)
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(
-                title="Success", message=f"'{item}' successfully extracted."
-            )
-            root.mainloop()
-
-            # Открываем папку с распакованными файлами
-            file_path = os.path.splitext(item)[
-                0
-            ]  # Убираем расширение архива
-            subprocess.Popen(f'explorer /select,"{file_path}"')
-
-        except RuntimeError as e:  # Catch potential password errors
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
-            root.mainloop()
-        except Exception as e:
-            root = tk.Tk()
-            root.withdraw()
-            CTkMessagebox(title="Error", message=f"Error extracting '{item}': {e}")
-            root.mainloop()
-
-    # Create and start a separate thread for extraction
-    thread = threading.Thread(target=extract_thread, args=(sys.argv[1:],))
-    thread.start()
-    thread.join()  # Wait for the thread to complete
-
-def create_reg_key(type=None):
-    """Creates a registry entry for the context menu."""
-    try:
-        python_path = sys.executable
-        script_path = os.path.abspath(__file__)
-
-        key_paths = {
-            "Archive File with WinP": r"Software\Classes\*\shell\ArchiveFile",
-            "Archive Folder with WinP": r"Software\Classes\Folder\shell\ArchiveFolder",
-        }
-
-        # Use unique keys for each file type
-        extract_key_paths = {
-            "Extract with WinP (.zis)": r"Software\Classes\.zis\shell\ExtractFile",
-            "Extract with WinP (.zip)": r"Software\Classes\.zip\shell\ExtractFile",
-            "Extract with WinP (.7z)": r"Software\Classes\.7z\shell\ExtractFile",
-        }
-
-        for menu_text, key_path in key_paths.items():
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path)
-            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, menu_text)
-            winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f"{script_path},0")
-
-            command_key = winreg.CreateKey(
-                winreg.HKEY_CURRENT_USER, key_path + r"\command"
-            )
-            winreg.SetValueEx(
-                command_key,
-                "",
-                0,
-                winreg.REG_SZ,
-                f'"{python_path}" "{script_path}" "%1"',
-            )
-            winreg.CloseKey(command_key)
-            winreg.CloseKey(key)
-
-        for menu_text, key_path in extract_key_paths.items():
-            key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, key_path)
-            winreg.SetValueEx(key, "", 0, winreg.REG_SZ, menu_text)
-            winreg.SetValueEx(key, "Icon", 0, winreg.REG_SZ, f"{script_path},0")
-
-            command_key = winreg.CreateKey(
-                winreg.HKEY_CURRENT_USER, key_path + r"\command"
-            )
-            winreg.SetValueEx(
-                command_key,
-                "",
-                0,
-                winreg.REG_SZ,
-                f'"{python_path}" "{script_path}" "extract" "%1"',
-            )
-            winreg.CloseKey(command_key)
-            winreg.CloseKey(key)
-
-        return True
-    except Exception as e:
-        print(f"Error creating registry key: {e}")
-        return False
-
-def delete_reg_key(type=None):
-    """
-    Deletes existing registry entries.
-
-    This function now removes the incorrect entry that was associated with folders
-    and adds the removal of the specific file type entries.
-    """
-
-    try:
-        key_paths = [
-            r"Software\Classes\*\shell\ArchiveFile",
-            r"Software\Classes\Folder\shell\ArchiveFolder",
-            r"Software\Classes\.zis\shell\ExtractFile",
-            r"Software\Classes\.zip\shell\ExtractFile",
-            r"Software\Classes\.7z\shell\ExtractFile",
-        ]
-
-        for key_path in key_paths:
-            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path + r"\command")
-            winreg.DeleteKey(winreg.HKEY_CURRENT_USER, key_path)
-        if type:
-            print("Done")
-        return True
-    except FileNotFoundError:
-        return True  # Key not found - this is normal
-    except Exception as e:
-        print(f"Error deleting registry key: {e}")
-        return False
-
-
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "extract":  # Check for "extract"
-        extract_selected()
-    elif len(sys.argv) > 1:  # If there are arguments, assume it's for archiving
-        compress_selected()
+    if len(sys.argv) > 1:
+        if sys.argv[1] == "extract":
+            # Получаем пути к файлам/папкам из аргументов командной строки:
+            items_to_extract = sys.argv[2:] 
+            extract_thread(items_to_extract)
+        elif sys.argv[1] == "archive":
+            items_to_archive = sys.argv[2:]
+            archive_thread(items_to_archive)
     else:
         app = WinPWindow()
         app.mainloop()

@@ -1,6 +1,7 @@
 import os
 import zipfile
 import zlib
+from CTkMessagebox import CTkMessagebox
 
 def compress_file(filename, password=None):
   """
@@ -12,8 +13,7 @@ def compress_file(filename, password=None):
   """
 
   filename_base, filename_ext = os.path.splitext(filename)
-  archive_name = f"{filename_base}.zis"
-  print(f"Пытаюсь создать архив: {archive_name}") 
+  archive_name = f"{filename_base}.zis" 
   try:
     with zipfile.ZipFile(archive_name, "w", zipfile.ZIP_DEFLATED) as zipf:
         if os.path.isdir(filename):  # Если это папка
@@ -27,8 +27,9 @@ def compress_file(filename, password=None):
 
         if password:
             zipf.setpassword(password.encode())
+    CTkMessagebox(title="Success", message=f"'{filename}' successfully archived.")
   except Exception as e:
-      print(f"Ошибка при архивации: {e}")
+      CTkMessagebox(title="Error", message=f"Error archiving: {e}")
 
 def decompress_file(filename, password=None):
     """
@@ -52,31 +53,8 @@ def decompress_file(filename, password=None):
 
             # Извлекаем все файлы в папку
             zipf.extractall(path=output_dir) 
-
+        CTkMessagebox(title="Success", message=f"'{filename}' successfully extracted.")
     except RuntimeError as e:
-        print(f"Ошибка при разархивации: {e}")
+        CTkMessagebox(title="Error", message=f"Error extracting '{filename}': {e}")
     except Exception as e:
-        print(f"Ошибка при разархивации: {e}")
-
-if __name__ == "__main__":
-  action = input("Выберите действие (1 - архивировать, 2 - разархивировать): ")
-  filename = input("Введите путь к файлу/папке: ")
-
-  if action == "1":
-    use_password = input("Использовать пароль? (да/нет): ")
-    if use_password.lower() == "да":
-      password = input("Введите пароль: ")
-    else:
-      password = "default"
-    compress_file(filename, password)
-    print(f"Файл/папка '{filename}' успешно архивирован в '{filename}.zip'")
-  elif action == "2":
-    use_password = input("Архив защищен паролем? (да/нет): ")
-    if use_password.lower() == "да":
-      password = input("Введите пароль: ")
-    else:
-      password = None
-    decompress_file(filename, password)
-    print(f"Файл/папка '{filename}' успешно разархивирован.")
-  else:
-    print("Неверный выбор действия.")
+        CTkMessagebox(title="Error", message=f"Error extracting '{filename}': {e}")
