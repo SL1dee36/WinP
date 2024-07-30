@@ -2,6 +2,9 @@ import os
 import zipfile
 import zlib
 from CTkMessagebox import CTkMessagebox
+import winreg
+import subprocess
+import time
 
 def compress_file(filename, password=None):
   """
@@ -58,3 +61,46 @@ def decompress_file(filename, password=None):
         CTkMessagebox(title="Error", message=f"Error extracting '{filename}': {e}")
     except Exception as e:
         CTkMessagebox(title="Error", message=f"Error extracting '{filename}': {e}")
+
+def restart_explorer():
+    """Перезапускает процесс explorer.exe."""
+    try:
+        # Завершаем процесс explorer.exe
+        subprocess.run(["taskkill", "/f", "/im", "explorer.exe"], check=True)
+
+        # Небольшая задержка, чтобы процесс успел завершиться
+        time.sleep(2)
+
+        # Запускаем explorer.exe заново
+        subprocess.Popen(["explorer.exe"])
+
+        print("Процесс explorer.exe перезапущен.")
+    except subprocess.CalledProcessError as e:
+        print(f"Ошибка при перезапуске explorer.exe: {e}")
+
+def set_icon_for_extension(extension, icon_path):
+    """
+    Устанавливает иконку для указанного расширения файла в реестре Windows.
+
+    Args:
+        extension: Расширение файла (например, ".txt", ".zis").
+        icon_path: Полный путь к файлу иконки (например, "C:\\MyIcons\\icon.ico").
+    """
+
+    try:
+
+        # Открываем ключ расширения файла в реестре
+        key = winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, extension)
+        winreg.CloseKey(key)  # Закрываем ключ, чтобы изменения вступили в силу
+
+        # Открываем ключ DefaultIcon
+        key = winreg.CreateKey(winreg.HKEY_CLASSES_ROOT, f"{extension}\\DefaultIcon")
+        winreg.SetValueEx(key, "", 0, winreg.REG_SZ, icon_path)  # Устанавливаем путь к иконке
+        winreg.CloseKey(key)
+
+        print(f"Иконка для расширения {extension} успешно установлена.")
+
+        restart_explorer()
+
+    except WindowsError as e:
+        print(f"Ошибка при установке иконки: {e}")

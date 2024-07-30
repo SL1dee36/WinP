@@ -1,41 +1,24 @@
 # created by Nazaryan Artem
 # Github @sl1de36 | Telegram @slide36
 
-import os
 import tkinter as tk
 from tkinter import filedialog
 from customtkinter import *
 from CTkMessagebox import CTkMessagebox
-from packages.func.arh import compress_file, decompress_file
+from packages.func.arh import compress_file, decompress_file, set_icon_for_extension
 from packages.func.tmp import *
 from packages.func.ctmenu import *
-import webbrowser
-import subprocess
-import os
-import sys
-import win32com.client
-import win32con
-import win32api
-import winreg
-import tempfile
+import webbrowser, subprocess, os, sys, win32com.client, win32con, win32api, winreg, tempfile
+import json, datetime, shutil, gc, shutil, psutil, threading, time, pystray
+import pywinstyles
 from pathlib import Path
 from PIL import Image
 import moviepy.editor as mp
 from pydub import AudioSegment
-import threading
-import time
-import pystray
 from PIL import Image
-import json
-import datetime
-import shutil
-import gc
-import shutil
-import psutil
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
-import pywinstyles
 
 from packages.data.lang import translations
 
@@ -44,7 +27,7 @@ class WinPWindow(CTk):
         super().__init__()
 
         self.current_language = "en"  # Default language
-        self.title("WinP: F29e7")
+        self.title("WinP: F30e7")
 
         try: self.iconbitmap("packages/assets/winp.ico") 
         except: 
@@ -64,19 +47,41 @@ class WinPWindow(CTk):
         self.tmp_frame   = None
         self.tmp_frame_r = None
 
-        self.Extended_menu = False
+        self.settings_path_debug = "packages/data/settings.json"
+        self.settings_path_correct = "_internal/data/settings.json"
+        self.icon_path_debug = "packages/assets/zis_folder.ico" 
+        self.icon_path_correct = "_internal/zis_folder.ico" 
 
+        self.Extended_menu = False
+        self.file_info_text = ""
+
+        self.correct_packages()
         self.load_settings()
         self.load_functions_frame()
         self.protocol(
             "WM_DELETE_WINDOW", self.on_closing
         )  # Вызов on_closing при закрытии
 
+    def correct_packages(self):
+        try:
+            with open(self.settings_path_correct, "r") as f:
+                settings = json.load(f)
+            self.settings_path = self.settings_path_correct
+        except: self.settings_path = self.settings_path_debug
+
+        try:
+            if os.path.isfile(self.icon_path_correct):
+                self.icon_path = self.icon_path_correct
+            else:
+                self.icon_path = self.icon_path_debug
+        except: pass
+
+        print(self.settings_path, self.icon_path)
+
     def load_settings(self):
         """Loads settings from settings.json."""
-        settings_path = "packages/data/settings.json"
         try:
-            with open(settings_path, "r") as f:
+            with open(self.settings_path, "r") as f:
                 settings = json.load(f)
                 self.current_language = settings.get("language", "en")
                 self.run_on_startup = settings.get("run_on_startup", False)
@@ -88,12 +93,11 @@ class WinPWindow(CTk):
 
     def save_settings(self):
         """Saves settings to settings.json."""
-        settings_path = "packages/data/settings.json"
         settings = {
             "language": self.current_language,
             "run_on_startup": self.run_on_startup,
         }
-        with open(settings_path, "w") as f:
+        with open(self.settings_path, "w") as f:
             json.dump(settings, f, indent=4) # Добавляем indent для читаемости
 
     def change_language(self, new_language):
@@ -413,6 +417,7 @@ class WinPWindow(CTk):
                 initialdir="/",
                 title=translations[self.current_language]["Select File"],
             )
+
             if self.file_path:
                 display_file_info()
             # Update conversion options based on selected file type
@@ -422,6 +427,8 @@ class WinPWindow(CTk):
             """Displays file information in the file_info_label."""
             if not self.file_path:  # Check if a file is selected
                 return
+            
+            print(self.file_path)
 
             file_name = os.path.basename(self.file_path)
             file_size = os.path.getsize(self.file_path)
@@ -462,19 +469,42 @@ class WinPWindow(CTk):
             )
             self.file_info_label.configure(text=file_info_text, justify=LEFT)
 
+        def dnd_cnv_func(files):
+            # Ensure files is a list and get the first element
+            if isinstance(files, (list, tuple)) and files:
+                self.file_path = files[0]  # Get the first dropped file
+            else:
+                self.file_path = ''
+                print("Invalid file dropped:", files) 
+                return  # Handle cases where dropping might not give a list
+
+            display_file_info()
+            
+            
+        # Button for selecting file/folder\
+
+        self.dnd_cnv_place = CTkFrame(self.cnv_frame_l,width=250,height=120)
+        self.dnd_cnv_place.pack(pady=5,padx=15)
+        self.dnd_cnv_place.propagate(0)
+
+        self.dnd_cnv_label = CTkLabel(self.dnd_cnv_place,text='\n\nDrag & Drop\nor',width=250,height=60)#translations[self.current_language]["File/Folder not selected"])
+        self.dnd_cnv_label.pack(padx=5)
+
         # Button to select a file
         select_file_button = CTkButton(
-            self.cnv_frame_l,
+            self.dnd_cnv_place,
             text=translations[self.current_language]["Select File"],
-            command=select_file,
+            command=select_file, width=250
         )
-        select_file_button.pack(padx=5, pady=10)
+        select_file_button.pack(padx=5, pady=5,side=BOTTOM)
 
         self.file_path = ""
         self.file_info_label = CTkLabel(
             self.cnv_frame_l, text=""
         )  # New label for file information
         self.file_info_label.pack(pady=5)
+
+        pywinstyles.apply_dnd(self.dnd_cnv_place, dnd_cnv_func)
 
         # --- Right Frame (Conversion Options) ---
         def segmented_button_callback(value):
@@ -687,7 +717,7 @@ class WinPWindow(CTk):
         bck_button = CTkButton(
             self.cnv_frame_l,
             text=translations[self.current_language]["Back"],
-            command=lambda: self.load_functions_frame(),
+            command=lambda: self.load_functions_frame(),width=250
         )
         bck_button.pack(padx=5, pady=5, side=BOTTOM)
 
@@ -713,7 +743,7 @@ class WinPWindow(CTk):
                 selected_category = self.segment_var.get()
 
                 if selected_category == translations[self.current_language]["Image"]:
-                    supported_formats = ["PNG", "JPG", "JPEG", "GIF"]
+                    supported_formats = ["PNG", "JPG", "JPEG", "GIF", "ICO"]
                 elif selected_category == translations[self.current_language]["Video"]:
                     supported_formats = ["MP4", "AVI", "MOV"]
                 elif selected_category == translations[self.current_language]["Audio"]:
@@ -792,6 +822,16 @@ class WinPWindow(CTk):
             command=lambda: delete_reg_key(True),
         )
         drg_button.pack(padx=5, pady=5)
+
+        extension = ".zis"  # Замените на ваше расширение
+
+        ico_button = CTkButton(
+            self.stg_frame,
+            text='Setup WinP ".zis" icons',#translations[self.current_language]["Disable WinP Context Menu"],
+            width=200,
+            command=lambda: set_icon_for_extension(extension, self.icon_path),
+        )
+        ico_button.pack(padx=5, pady=5)
 
         # Language Selection
         self.language_label = CTkLabel(self.stg_frame, text=translations[self.current_language]["Select Language"])
@@ -895,7 +935,7 @@ class WinPWindow(CTk):
                 )
             self.file_path_label.configure(text=self.file_path)
 
-        def drop_func( files):
+        def drop_func(files):
             for file in files:
                 print(file)
 
@@ -920,7 +960,6 @@ class WinPWindow(CTk):
         # Label to display the selected path
         self.file_path_label = CTkLabel(self.arh_frame, text=translations[self.current_language]["File/Folder not selected"])
         self.file_path_label.pack(pady=5)
-
 
         self.file_radiobutton_frame = CTkFrame(self.arh_frame,width=250,height=50)
         self.file_radiobutton_frame.pack(padx=5)
