@@ -5,17 +5,23 @@ WinP is a user-friendly application built with Python and customtkinter, providi
 
 ## Features
 
-* **Archiving:** Compress files and folders into archives with optional password protection. Supports extraction from various archive formats (.zis, .zip, .7zip).
+* **Archiving:** Compress files and folders into archives with optional password protection. Supports extraction from .zis, .zip, and .7zip archives.
 * **Conversion:** Convert between different file formats, including:
-    * **Images:** PNG, JPG, JPEG, GIF, ...
-    * **Videos:** MP4, AVI, MOV, ...
-    * **Audios:** MP3, WAV, OGG, ...
-    * **Documents:** TXT, ...
-* **Optimization:** Clean up temporary files, manage registry entries, optimize system performance & more.
+    * **Images:** PNG, JPG, JPEG, GIF, ICO
+    * **Videos:** MP4, AVI, MOV
+    * **Audios:** MP3, WAV, OGG
+    * **Documents:** TXT 
+* **Optimization:** 
+    * Cleans up temporary files.
+    * Provides options to check and manage registry entries (implementation in progress).
+    * Optimizes system performance by freeing up RAM.
+* **File Information and Editing:** View detailed file information and edit basic attributes (name, dates, read-only).
 * **Context Menu Integration:** Access WinP's archiving and extraction functions directly from your file explorer's right-click menu.
+* **Drag and Drop:** Easily select files and folders for archiving and conversion using drag and drop. 
 * **Multilingual Support:** User interface available in English and Russian.
 * **Cross-Platform Compatibility:** Developed with portability in mind, aiming for future compatibility with multiple operating systems.
 * **System Tray Integration:** Minimize WinP to the system tray for easy access.
+* **Real-Time System Monitoring:**  Displays a live graph of RAM usage.
 
 ## Getting Started
 
@@ -27,6 +33,9 @@ WinP is a user-friendly application built with Python and customtkinter, providi
     - `pydub`
     - `win32com` (For Windows context menu integration)
     - `pystray` (For System Tray Icon)
+    - `pywinstyles` (For Drag & Drop)
+    - `psutil` (For System Monitoring)
+    - `matplotlib` (For RAM usage graph)
 
 2. **Clone or Download:** Get the WinP repository from GitHub:
 
@@ -50,28 +59,40 @@ WinP is a user-friendly application built with Python and customtkinter, providi
 
 ### Archiving
 
-1. **Select File/Folder:** Click "Select" and choose the file or folder you want to archive.
+1. **Select File/Folder:** 
+    * Drag and drop the file or folder onto the designated area. 
+    * Click "Select" and choose the file or folder you want to archive.
 2. **Set Options:** 
-    - Select "File" or "Folder" compression type.
+    - Choose between "File" or "Folder" compression type.
     - Check "Use Password?" and enter a password if desired.
-3. **Archive/Extract:** Click "Archive" to compress or "Extract" to decompress.
+3. **Archive/Extract:** 
+    * Click "Archive" to compress.
+    * Click "Extract" to decompress supported archive types.
 
 ### Conversion
 
-1. **Select File:**  Click "Select File" and choose the file you want to convert. File information will be displayed.
+1. **Select File:**  
+    * Drag and drop the file onto the designated area.
+    * Click "Select File" and choose the file you want to convert. File information will be displayed.
 2. **Choose Category:**  Use the segmented buttons (Image, Video, Audio, Document) to select the appropriate category.
 3. **Select Output Format:**  Choose the desired output format from the dropdown menu.
 4. **Convert:**  Click "Convert" to start the conversion process. The converted file will be saved in your Downloads folder.
 
+### Optimization
+
+* **Clear Temp Folder:** Click "Clear Temp Folder" to remove temporary files.
+* **Check Registry:** This feature is under development.
+* **Free Up RAM:** Click "Free Up RAM" to attempt to clear unused RAM.
+
 ### Settings
 
-* **Context Menu:** Enable or disable WinP's context menu integration for quick access to archiving and extraction.
-* **Language:** Switch between English and Russian language options.
+* **Context Menu:** Enable or disable WinP's context menu integration.
+* **Language:** Switch between available languages.
 * **Run on Windows Startup:** Choose whether to launch WinP automatically when Windows starts.
 
 ## Context Menu Integration
 
-On Windows, you can enable context menu integration during the first run of WinP. This adds options to right-click on files and folders to:
+On Windows, enable context menu integration during the first run or in the Settings. This adds options to right-click on files and folders to:
 
 * **"Archive File/Folder with WinP":** Directly compress the selected item.
 * **"Extract with WinP":**  Extract files from supported archive formats (.zis, .zip, .7zip).
@@ -91,5 +112,4 @@ This project is licensed under the MIT License.
 ## Contact
 
 * **GitHub:** [Nazaryan Artem @Sl1dee36](https://github.com/Sl1dee36)
-
----
+* **Telegram:** @slide36 
