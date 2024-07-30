@@ -104,3 +104,22 @@ def set_icon_for_extension(extension, icon_path):
 
     except WindowsError as e:
         print(f"Ошибка при установке иконки: {e}")
+
+def remove_icon_for_extension(extension):
+    """
+    Удаляет установленную иконку для указанного расширения файла в реестре Windows.
+
+    Args:
+        extension: Расширение файла (например, ".txt", ".zis").
+    """
+
+    try:
+        # Удаляем ключ DefaultIcon
+        winreg.DeleteKey(winreg.HKEY_CLASSES_ROOT, f"{extension}\\DefaultIcon")
+
+        print(f"Иконка для расширения {extension} успешно удалена.")
+
+        restart_explorer()
+
+    except WindowsError as e:
+        print(f"Ошибка при удалении иконки: {e}")

@@ -1,4 +1,5 @@
 import winreg
+from arh import remove_icon_for_extension
 
 def delete_reg_key():
     """Удаляет записи WinP из реестра."""
@@ -25,3 +26,4 @@ def delete_reg_key():
 
 if __name__ == "__main__":
     delete_reg_key()
+    remove_icon_for_extension(".zis")

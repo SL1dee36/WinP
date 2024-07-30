@@ -5,7 +5,7 @@ import tkinter as tk
 from tkinter import filedialog
 from customtkinter import *
 from CTkMessagebox import CTkMessagebox
-from packages.func.arh import compress_file, decompress_file, set_icon_for_extension
+from packages.func.arh import compress_file, decompress_file, set_icon_for_extension, remove_icon_for_extension
 from packages.func.tmp import *
 from packages.func.ctmenu import *
 import webbrowser, subprocess, os, sys, win32com.client, win32con, win32api, winreg, tempfile
@@ -832,6 +832,14 @@ class WinPWindow(CTk):
             command=lambda: set_icon_for_extension(extension, self.icon_path),
         )
         ico_button.pack(padx=5, pady=5)
+
+        ico_uninst_button = CTkButton(
+            self.stg_frame,
+            text='Setup WinP ".zis" icons',#translations[self.current_language]["Disable WinP Context Menu"],
+            width=200,
+            command=lambda: remove_icon_for_extension(extension),
+        )
+        ico_uninst_button.pack(padx=5, pady=5)
 
         # Language Selection
         self.language_label = CTkLabel(self.stg_frame, text=translations[self.current_language]["Select Language"])
