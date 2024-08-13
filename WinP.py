@@ -21,13 +21,16 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.animation as animation
 
 from packages.data.lang import translations
-
+from packages.func.themes import *
 class WinPWindow(CTk):
     def __init__(self):
         super().__init__()
 
         self.current_language = "en"  # Default language
-        self.title("WinP: F30e7")
+        self.title("WinP: F14e8 0.32.1")
+
+        # Инициализация настроек
+        self.current_theme = "default"
 
         try: self.iconbitmap("packages/assets/winp.ico") 
         except: 
@@ -133,6 +136,30 @@ class WinPWindow(CTk):
         for child in widget.winfo_children():
             self.update_widget_language(child)
     
+    def create_theme_menu(self):
+            self.theme_menu = CTkOptionMenu(self.spec_frame, values=["Default", "Dark", "Light", "Blue", "Green", "Red"], command=self.change_theme)
+            self.theme_menu.pack(pady=5,padx=5,side='right',anchor='se')
+
+    def change_theme(self, theme):
+            self.current_theme = theme.lower()
+        
+    def apply_theme(self):
+        if self.current_theme == "default":
+            set_appearance_mode("System")  # Стандарт
+        elif self.current_theme == "dark":
+            set_appearance_mode("dark")  # Темная тема
+        elif self.current_theme == "light":
+            set_appearance_mode("light")  # Светлая тема
+        elif self.current_theme == "blue":
+            set_appearance_mode("blue")  # Темно-синяя тема (не стандартная, задайте стиль для blue)
+            # Вы можете настроить ваши собственные цвета
+        elif self.current_theme == "green":
+            set_appearance_mode("green")  # Темно-зеленая тема (не стандартная)
+            # Настройки аналогично
+        elif self.current_theme == "red":
+            set_appearance_mode("red")  # Темно-красная тема (не стандартная)
+            # Настройки аналогично
+
     def create_system_tray_icon(self):
         """Создает иконку в системном трее."""
 
@@ -841,31 +868,47 @@ class WinPWindow(CTk):
         )
         ico_uninst_button.pack(padx=5, pady=5)
 
-        # Language Selection
-        self.language_label = CTkLabel(self.stg_frame, text=translations[self.current_language]["Select Language"])
-        self.language_label.pack(padx=5, pady=5)
+        self.spec_frame = CTkFrame(self.stg_frame, width=250, height=100)
+        self.spec_frame.pack(padx=5, pady=5)
+        self.spec_frame.propagate(0)
+
+        # Языковая метка
+        self.language_label = CTkLabel(self.spec_frame, text=translations[self.current_language]["Select Language"])
+        self.language_label.pack(side='left', padx=5, pady=5, anchor='nw')  # Слева
 
         # Получаем список доступных языков из словаря переводов
         available_languages = list(translations.keys())
-        # Сопоставляем отображаемые имена языков с их кодами
         language_names = {
             "en": "English",
             "ru": "Русский",
             "de": "Deutsch",
             "fr": "Français",
             "hy": "Հայոց լեզու"
-            # Добавьте другие языки по аналогии
         }
+
+        # Отображаемые языки
         display_languages = [language_names.get(lang, lang) for lang in available_languages]
 
+        # Выпадающее меню для выбора языка
         self.language_menu = CTkOptionMenu(
-            self.stg_frame,
-            values=display_languages, # Используем отображаемые имена
+            self.spec_frame,
+            values=display_languages,
             command=lambda lang: self.change_language(
-                available_languages[display_languages.index(lang)] # Получаем код языка
-            ),
+                available_languages[display_languages.index(lang)]
+            )
         )
-        self.language_menu.pack(padx=5, pady=5)
+        self.language_menu.pack(side='right', padx=5, pady=5,anchor='ne')  # Слева
+
+        # Метка для выбора тем
+        self.label = CTkLabel(self.spec_frame, text="Выберите тему:",anchor='sw')
+        self.label.pack(side='left', padx=5, pady=5)
+
+        # Создание элементов управления для темы
+        self.theme_menu = CTkOptionMenu(self.spec_frame, values=["Default", "Dark", "Light", "Blue", "Green", "Red"], command=self.change_theme,anchor='se')
+        self.theme_menu.pack(pady=5,padx=5,side='right')
+        # Кнопка для применения темы
+        self.apply_theme_button = CTkButton(self.spec_frame, text="Применить тему", command=self.apply_theme)
+        self.apply_theme_button.pack(side='bottom', padx=5, pady=5)
 
         # Run on Windows Startup Switch
         def toggle_run_on_startup():
