@@ -1,1 +1,10 @@
-in dev
+customtkinter
+moviepy
+pydub
+matplotlib
+tkinter
+CTkMessagebox
+psutil
+pystray
+pywinstyles
+pillow
