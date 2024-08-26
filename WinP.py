@@ -27,7 +27,7 @@ class WinPWindow(CTk):
         super().__init__()
 
         self.current_language = "en"  # Default language
-        self.title("WinP: F14e8 0.32.1")
+        self.title("WinP: F27e8 0.50.10")
 
         # Инициализация настроек
         self.current_theme = "default"
